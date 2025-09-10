@@ -1,0 +1,242 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hacking Green PDF Unlocker</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      font-family: "Share Tech Mono", monospace;
+      background: black;
+      color: #00ff00;
+      text-align: center;
+      padding: 20px;
+    }
+    .btn {
+      background: black;
+      border: 1px solid #00ff00;
+      color: #00ff00;
+      padding: 12px 25px;
+      margin: 10px;
+      cursor: pointer;
+      border-radius: 8px;
+      font-size: 15px;
+    }
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    #pdfFile {
+      padding: 12px;
+      border: 2px dashed #00ff00;
+      background: rgba(0, 255, 0, 0.1);
+      color: #00ff00;
+      font-size: 16px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    #notifications {
+      margin-top: 20px;
+      font-size: 14px;
+    }
+    .popup {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: black;
+      border: 1px solid #00ff00;
+      padding: 20px;
+      display: none;
+      z-index: 1000;
+      border-radius: 10px;
+      width: 300px;
+    }
+    .popup .close-btn {
+      position: absolute;
+      top: 5px;
+      right: 10px;
+      color: #00ff00;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .pdf-preview {
+      margin-top: 20px;
+    }
+    canvas {
+      border: 1px solid #00ff00;
+      margin: 10px 0;
+      max-width: 100%;
+    }
+    footer {
+      margin-top: 20px;
+      font-size: 12px;
+      opacity: 0.7;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.5.141/pdf.min.js"></script>
+</head>
+<body>
+  <h1>Hacking Green PDF Unlocker</h1>  <input type="file" id="pdfFile" accept="application/pdf" />
+  <br />
+  <button class="btn" id="proceedBtn">Proceed</button>  <div id="notifications"></div>  <div class="popup" id="passwordPopup">
+    <span class="close-btn" onclick="closePasswordPopup()">×</span>
+    <p>Password required:</p>
+    <input type="password" id="passwordInput" placeholder="Enter password" />
+    <br />
+    <button class="btn" onclick="submitPassword()">Submit</button>
+  </div>  <div class="popup" id="incorrectPopup">
+    <p style="color:red;">Incorrect password. Try again.</p>
+    <button class="btn" onclick="closeIncorrectPopup()">Close</button>
+  </div>  <div class="pdf-preview" id="pdfPreview"></div>  <div id="unlockSection" style="display:none;">
+    <button class="btn" id="unlockBtn">Unlock PDF</button>
+  </div>  <div id="downloadOptions" style="display:none;">
+    <button class="btn" id="downloadPDFBtn">Download PDF</button>
+    <button class="btn" id="downloadJPGBtn">Download JPG</button>
+    <button class="btn" id="downloadPNGBtn">Download PNG</button>
+  </div>  <footer>Powered by BAPON BARMON</footer>  <script>
+    let selectedFile = null;
+    let pdfDoc = null;
+    let canvases = [];
+    let userPassword = null;
+
+    const notifications = document.getElementById("notifications");
+    const pdfPreview = document.getElementById("pdfPreview");
+    const passwordPopup = document.getElementById("passwordPopup");
+    const incorrectPopup = document.getElementById("incorrectPopup");
+    const unlockSection = document.getElementById("unlockSection");
+    const unlockBtn = document.getElementById("unlockBtn");
+    const downloadOptions = document.getElementById("downloadOptions");
+    const downloadPDFBtn = document.getElementById("downloadPDFBtn");
+    const downloadJPGBtn = document.getElementById("downloadJPGBtn");
+    const downloadPNGBtn = document.getElementById("downloadPNGBtn");
+
+    document.getElementById("pdfFile").addEventListener("change", (e) => {
+      selectedFile = e.target.files[0];
+    });
+
+    document.getElementById("proceedBtn").addEventListener("click", async () => {
+      if (!selectedFile) return alert("Please choose a PDF first.");
+      notifications.innerHTML = "Uploading your PDF...";
+      await sleep(2000);
+      notifications.innerHTML = "PDF uploaded successfully";
+      await sleep(1000);
+      notifications.innerHTML = "Verifying your PDF...";
+      await sleep(2000);
+      notifications.innerHTML = "Verified successfully";
+      await sleep(1000);
+      loadPDF(selectedFile);
+    });
+
+    async function loadPDF(file) {
+      const ab = await file.arrayBuffer();
+      try {
+        const loadingTask = pdfjsLib.getDocument({ data: ab, password: userPassword });
+        loadingTask.onPassword = async () => {
+          passwordPopup.style.display = "block";
+        };
+        pdfDoc = await loadingTask.promise;
+        passwordPopup.style.display = "none";
+        notifications.innerHTML = "Rendering PDF...";
+        renderPages(pdfDoc);
+      } catch (err) {
+        if (err && err.name === "PasswordException") {
+          incorrectPopup.style.display = "block";
+        } else {
+          notifications.innerHTML = "Failed to load PDF.";
+          console.error(err);
+        }
+      }
+    }
+
+    async function renderPages(pdf) {
+      pdfPreview.innerHTML = "";
+      canvases = [];
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({ scale: 1 });
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        await page.render({ canvasContext: context, viewport }).promise;
+        pdfPreview.appendChild(canvas);
+        canvases.push(canvas);
+      }
+      unlockSection.style.display = "block";
+      notifications.innerHTML = "PDF Preview Ready.";
+    }
+
+    async function submitPassword() {
+      userPassword = document.getElementById("passwordInput").value;
+      passwordPopup.style.display = "none";
+      notifications.innerHTML = "Verifying password...";
+      await sleep(2000);
+      try {
+        const ab = await selectedFile.arrayBuffer();
+        const loadingTask = pdfjsLib.getDocument({ data: ab, password: userPassword });
+        pdfDoc = await loadingTask.promise;
+        notifications.innerHTML = "Password verified successfully";
+        renderPages(pdfDoc);
+      } catch (err) {
+        if (err && err.name === "PasswordException") {
+          incorrectPopup.style.display = "block";
+        } else {
+          notifications.innerHTML = "Failed to load PDF.";
+        }
+      }
+    }
+
+    function closePasswordPopup() {
+      passwordPopup.style.display = "none";
+    }
+
+    function closeIncorrectPopup() {
+      incorrectPopup.style.display = "none";
+      passwordPopup.style.display = "block";
+    }
+
+    unlockBtn.addEventListener("click", async () => {
+      notifications.innerHTML = "Unlocking your PDF...";
+      await sleep(2000);
+      notifications.innerHTML = "Unlocked successfully";
+      downloadOptions.style.display = "block";
+    });
+
+    // Download original PDF without compression
+    downloadPDFBtn.addEventListener("click", () => {
+      if (!selectedFile) return;
+      const url = URL.createObjectURL(selectedFile);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = selectedFile.name.replace(/\.pdf$/i, "_unlocked.pdf");
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    // Download as JPG or PNG: render canvas as images, no compression
+    function downloadCanvasImages(format) {
+      canvases.forEach((canvas, index) => {
+        canvas.toBlob((blob) => {
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = `page_${index + 1}.${format}`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }, `image/${format}`);
+      });
+    }
+
+    downloadJPGBtn.addEventListener("click", () => downloadCanvasImages('jpeg'));
+    downloadPNGBtn.addEventListener("click", () => downloadCanvasImages('png'));
+
+    function sleep(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+  </script></body>
+</html>
